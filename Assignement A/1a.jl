@@ -10,7 +10,7 @@ model_one = Model(Gurobi.Optimizer)
 
 #Declare the size of the problem
 # Number of district 
-W = 3
+W = 5
 # Number of time steps
 T = 10
 
@@ -18,8 +18,8 @@ T = 10
 #Creation of the parameters of the problem
 # Creation of the price list, W rows and T columns, here we use random number between 0 and 10
 cost_coffee = round.(10 * rand(W, T), digits=2)
-# Creation of the penalty price, constructed for 3 here
-cost_miss = [10,15,20]
+# Creation of the penalty price, number between 10 and 20
+cost_miss = round.(10 * rand(W) .+ 10, digits=2)
 # Creation of the transportation cost, W rows and W columns, 5 everywhere
 cost_tr = 3*ones(W, W)
 # Creation of the storage capacities, 1 row and W columns, 10 everywhere
@@ -88,7 +88,7 @@ for w in 1:W
             end
             if t != 1
                 # Quantities send and recieved are limited to the quantities left from the day before
-                @constraint(model_one, quantities_send[w,q,t] <= quantities_stocked[w,t-1] - demand_coffee[w,t-1] + quantities_missed[w,t-1])
+                @constraint(model_one, sum(quantities_send[w,q,t] for q in 1:W) <= quantities_stocked[w,t-1] - demand_coffee[w,t-1] + quantities_missed[w,t-1])
                 @constraint(model_one, quantities_recieved[w,q,t] <= quantities_stocked[q,t-1] - demand_coffee[q,t-1] + quantities_missed[q,t-1])
             end
             if w == q 
@@ -116,6 +116,8 @@ if termination_status(model_one) == MOI.OPTIMAL
     file = open(file_path, "w")
 
     # Write inside the text file
+    println(file,"Cost of the solution : $(round.(objective_value(model_one), digits=2))")
+    println(file,"-----------------")
     for t in 1:T
         println(file, "Time Step: $t")
         println(file,"----") 

@@ -66,7 +66,7 @@ function Calculate_OiH_solution()
     @constraint(model_OiH, Self_transport[w in 1:number_of_warehouses, t in 1:number_of_simulation_periods], quantities_send[w,w,t] == 0)
     # Constraint on quantity send limited to previous stock
     @constraint(model_OiH, Transport_stock[w in 1:number_of_warehouses, q in 1:number_of_warehouses, t in 2:number_of_simulation_periods], sum(quantities_send[w,q,t] for q in 1:number_of_warehouses) <= quantities_stocked[w,t-1])
-    @constraint(model_OiH, Transport_stock_start[w in 1:number_of_warehouses, q in 1:number_of_warehouses], sum(quantities_send[w,q,1] for q in 1:number_of_warehouses) <= 2)
+    @constraint(model_OiH, Transport_stock_start[w in 1:number_of_warehouses, q in 1:number_of_warehouses], sum(quantities_send[w,q,1] for q in 1:number_of_warehouses) <= initial_stock[w])
     # Constraint on quantity stock at time t with input and output
     @constraint(model_OiH, Stockage[w in 1:number_of_warehouses, t in 2:number_of_simulation_periods], quantities_stocked[w,t] == quantities_stocked[w,t-1]+quantities_ordered[w,t]
     +sum(quantities_recieved[w,q,t] - quantities_send[w,q,t] for q in 1:number_of_warehouses)- demand_coffee[w,t] + quantities_missed[w,t])

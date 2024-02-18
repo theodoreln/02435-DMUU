@@ -37,53 +37,55 @@ function Make_EV_here_and_now_decision(prices)
     demand_coffee = demand_trajectory
 
     #Declare model with Gurobi solver
-    model_one = Model(Gurobi.Optimizer)
+    model_EB = Model(Gurobi.Optimizer)
 
     #Declare the variables to optimize
     # Quantities of coffee ordered, W rows and T columns
-    @variable(model_one, quantities_ordered[1:number_of_warehouses, 1:number_of_simulation_periods]>=0)
+    @variable(model_EB, quantities_ordered[1:number_of_warehouses, 1:number_of_simulation_periods]>=0)
     # Quantities send from w to q, W rows W columns and T layers
-    @variable(model_one, quantities_send[1:number_of_warehouses, 1:number_of_warehouses, 1:number_of_simulation_periods]>=0)
+    @variable(model_EB, quantities_send[1:number_of_warehouses, 1:number_of_warehouses, 1:number_of_simulation_periods]>=0)
     # Quantities recieved by w from q, W rows W columns and T layers
-    @variable(model_one, quantities_recieved[1:number_of_warehouses, 1:number_of_warehouses, 1:number_of_simulation_periods]>=0)
+    @variable(model_EB, quantities_recieved[1:number_of_warehouses, 1:number_of_warehouses, 1:number_of_simulation_periods]>=0)
     # Quantities in the warehouse stockage, W rows and T columns
-    @variable(model_one, quantities_stocked[1:number_of_warehouses, 1:number_of_simulation_periods]>=0)
+    @variable(model_EB, quantities_stocked[1:number_of_warehouses, 1:number_of_simulation_periods]>=0)
     # Quantities mising to complete the demand, W rows and T columns
-    @variable(model_one, quantities_missed[1:number_of_warehouses, 1:number_of_simulation_periods]>=0)
+    @variable(model_EB, quantities_missed[1:number_of_warehouses, 1:number_of_simulation_periods]>=0)
     
     #Objective function
-    @objective(model_one, Min, sum(quantities_ordered[w,t]*cost_coffee[t][w] for w in 1:number_of_warehouses, t in 1:number_of_simulation_periods) 
+    @objective(model_EB, Min, sum(quantities_ordered[w,t]*cost_coffee[t][w] for w in 1:number_of_warehouses, t in 1:number_of_simulation_periods) 
     + sum(quantities_send[w,q,t]*cost_tr[w,q] for w in 1:number_of_warehouses, q in 1:number_of_warehouses, t in 1:number_of_simulation_periods)
     + sum(quantities_missed[w,t]*cost_miss[w] for w in 1:number_of_warehouses, t in 1:number_of_simulation_periods))
 
     #Constraints of the problem
     # Constraint on stockage capacities limited to the maximum capacities
-    @constraint(model_one, Stockage_limit[w in 1:number_of_warehouses, t in 1:number_of_simulation_periods], quantities_stocked[w,t] <= warehouse_capacities[w])
+    @constraint(model_EB, Stockage_limit[w in 1:number_of_warehouses, t in 1:number_of_simulation_periods], quantities_stocked[w,t] <= warehouse_capacities[w])
     # Constraint on transport capacities limited to the maximum capacities
-    @constraint(model_one, Transport_limit[w in 1:number_of_warehouses, q in 1:number_of_warehouses, t in 1:number_of_simulation_periods], quantities_send[w,q,t] <= transport_capacities[w,q])
+    @constraint(model_EB, Transport_limit[w in 1:number_of_warehouses, q in 1:number_of_warehouses, t in 1:number_of_simulation_periods], quantities_send[w,q,t] <= transport_capacities[w,q])
     # Constraint on quantity send equal quantity recieved
-    @constraint(model_one, Send_recieved[w in 1:number_of_warehouses, q in 1:number_of_warehouses, t in 1:number_of_simulation_periods], quantities_send[w,q,t] == quantities_recieved[q,w,t])
+    @constraint(model_EB, Send_recieved[w in 1:number_of_warehouses, q in 1:number_of_warehouses, t in 1:number_of_simulation_periods], quantities_send[w,q,t] == quantities_recieved[q,w,t])
     # Constraint on a warehouse can only send to others warehouse
-    @constraint(model_one, Self_transport[w in 1:number_of_warehouses, t in 1:number_of_simulation_periods], quantities_send[w,w,t] == 0)
+    # Useless cause the self-transport capacity is equal to 0
+    @constraint(model_EB, Self_transport[w in 1:number_of_warehouses, t in 1:number_of_simulation_periods], quantities_send[w,w,t] == 0)
     # Constraint on quantity send limited to previous stock
-    @constraint(model_one, Transport_stock[w in 1:number_of_warehouses, q in 1:number_of_warehouses, t in 2:number_of_simulation_periods], sum(quantities_send[w,q,t] for q in 1:number_of_warehouses) <= quantities_stocked[w,t-1])
-    @constraint(model_one, Transport_stock_start[w in 1:number_of_warehouses, q in 1:number_of_warehouses], sum(quantities_send[w,q,1] for q in 1:number_of_warehouses) <= 2)
+    @constraint(model_EB, Transport_stock[w in 1:number_of_warehouses, q in 1:number_of_warehouses, t in 2:number_of_simulation_periods], sum(quantities_send[w,q,t] for q in 1:number_of_warehouses) <= quantities_stocked[w,t-1])
+    @constraint(model_EB, Transport_stock_start[w in 1:number_of_warehouses, q in 1:number_of_warehouses], sum(quantities_send[w,q,1] for q in 1:number_of_warehouses) <= initial_stock[w])
     # Constraint on quantity stock at time t with input and output
-    @constraint(model_one, Stockage[w in 1:number_of_warehouses, t in 2:number_of_simulation_periods], quantities_stocked[w,t] == quantities_stocked[w,t-1]+quantities_ordered[w,t]
+    @constraint(model_EB, Stockage[w in 1:number_of_warehouses, t in 2:number_of_simulation_periods], quantities_stocked[w,t] == quantities_stocked[w,t-1]+quantities_ordered[w,t]
     +sum(quantities_recieved[w,q,t] - quantities_send[w,q,t] for q in 1:number_of_warehouses)- demand_coffee[w,t] + quantities_missed[w,t])
-    @constraint(model_one, Stockage_start[w in 1:number_of_warehouses], quantities_stocked[w,1] == initial_stock[w]+quantities_ordered[w,1]
+    @constraint(model_EB, Stockage_start[w in 1:number_of_warehouses], quantities_stocked[w,1] == initial_stock[w]+quantities_ordered[w,1]
     +sum(quantities_recieved[w,q,1] - quantities_send[w,q,1] for q in 1:number_of_warehouses)- demand_coffee[w,1] + quantities_missed[w,1])
 
 
-    optimize!(model_one)
+    optimize!(model_EB)
 
 
     #Check if optimal solution was found
-    if termination_status(model_one) == MOI.OPTIMAL
+    if termination_status(model_EB) == MOI.OPTIMAL
         println("Optimal solution found")
         
         # Display of the results in a text file
-        #=
+        
+
         # Get the directory of the current script
         script_directory = @__DIR__
         # Construct the full file path
@@ -92,7 +94,7 @@ function Make_EV_here_and_now_decision(prices)
         file = open(file_path, "w")
 
         # Write inside the text file
-        println(file,"Cost of the solution : $(round.(objective_value(model_one), digits=2))")
+        println(file,"Cost of the solution : $(round.(objective_value(model_EB), digits=2))")
         println(file,"-----------------")
         for t in 1:number_of_simulation_periods
             println(file, "Time Step: $t")
@@ -117,14 +119,14 @@ function Make_EV_here_and_now_decision(prices)
         close(file)
         # Open the file 
         run(`cmd /c start notepad $file_path`)
-        =#
+        
 
         #return interesting values
-        return value.(quantities_ordered),value.(quantities_send),value.(quantities_recieved),value.(quantities_stocked),value.(quantities_missed),objective_value(model_one)
+        return value.(quantities_ordered[:,1]),value.(quantities_send[:,:,1]),value.(quantities_recieved[:,:,1]),value.(quantities_stocked[:,1]),value.(quantities_missed[:,1]),objective_value(model_EB)
     else
         return error("No solution.")
     end
 
 end
 
-qo,qs,qr,qst,qm,ov=Make_EV_here_and_now_decision(prices)
+qo_EB,qs_EB,qr_EB,qst_EB,qm_EB,ov_EB=Make_EV_here_and_now_decision(prices)

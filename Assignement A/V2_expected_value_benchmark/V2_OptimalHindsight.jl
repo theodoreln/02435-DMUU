@@ -8,17 +8,13 @@ using JuMP
 using Gurobi
 using Printf
 
+prices=[round.(10 * rand(3), digits=2)]
 
-
-function Calculate_OiH_solution()
+function Calculate_OiH_solution(prices)
     
     # Importation of the inputs from the two stage problem
     number_of_warehouses, W, cost_miss, cost_tr, warehouse_capacities, transport_capacities, 
     initial_stock, number_of_simulation_periods, sim_T, demand_trajectory = load_the_data()
-
-
-    # Collect prices of time t to t+n (Prices is a matrix with columns = w and rows = t)
-    prices=[round.(10 * rand(3), digits=2)]
 
     for t in 1:(number_of_simulation_periods-1)
         next_prices = [sample_next(prices[t][w]) for w in W]
@@ -126,4 +122,4 @@ function Calculate_OiH_solution()
 
 end
 
-qo_OiH,qs_OiH,qr_OiH,qst_OiH,qm_OiH,ov_OiH=Calculate_OiH_solution()
+qo_OiH,qs_OiH,qr_OiH,qst_OiH,qm_OiH,ov_OiH=Calculate_OiH_solution(prices)

@@ -9,7 +9,7 @@ using Gurobi
 using Printf
 
 
-prices=round.(10 * rand(3), digits=2)
+# prices=round.(10 * rand(3), digits=2)
 
 function Make_EV_here_and_now_decision(prices)
     
@@ -86,47 +86,51 @@ function Make_EV_here_and_now_decision(prices)
         # Display of the results in a text file
         
 
-        # Get the directory of the current script
-        script_directory = @__DIR__
-        # Construct the full file path
-        file_path = joinpath(script_directory, "output.txt")
-        # Open or create a text file
-        file = open(file_path, "w")
+        # # Get the directory of the current script
+        # script_directory = @__DIR__
+        # # Construct the full file path
+        # file_path = joinpath(script_directory, "output.txt")
+        # # Open or create a text file
+        # file = open(file_path, "w")
 
-        # Write inside the text file
-        println(file,"Cost of the solution : $(round.(objective_value(model_EB), digits=2))")
-        println(file,"-----------------")
-        for t in 1:number_of_simulation_periods
-            println(file, "Time Step: $t")
-            println(file,"----") 
-            # Display other information for the current time step
-            for w in 1:number_of_warehouses 
-                println(file,"Warehouse $w : Demand $(demand_coffee[w,t]) / Ordered $(round.(value.(quantities_ordered)[w,t], digits=2)) / Price $(cost_coffee[t][w])")
-                if t != 1 
-                    println(file,"Previous Stock $(round.(value.(quantities_stocked)[w,t-1], digits=2)) / Sent $(sum(round.(value.(quantities_send)[w,q,t], digits=2) for q in 1:number_of_warehouses)) / Recieved $(sum(round.(value.(quantities_recieved)[w,q,t], digits=2) for q in 1:number_of_warehouses))")
-                else 
-                    println(file,"Previous Stock 2.00 / Sent $(sum(round.(value.(quantities_send)[w,q,t], digits=2) for q in 1:number_of_warehouses)) / Recieved $(sum(round.(value.(quantities_recieved)[w,q,t], digits=2) for q in 1:number_of_warehouses))")
-                end
-                println(file,"Missed $(round.(value.(quantities_missed)[w,t], digits=2)) / Stock $(round.(value.(quantities_stocked)[w,t], digits=2))")
-                println(file,"----")  
-            end
-            println(file,"-----------------")  # Separator between time steps
-        end
+        # # Write inside the text file
+        # println(file,"Cost of the solution : $(round.(objective_value(model_EB), digits=2))")
+        # println(file,"-----------------")
+        # for t in 1:number_of_simulation_periods
+        #     println(file, "Time Step: $t")
+        #     println(file,"----") 
+        #     # Display other information for the current time step
+        #     for w in 1:number_of_warehouses 
+        #         println(file,"Warehouse $w : Demand $(demand_coffee[w,t]) / Ordered $(round.(value.(quantities_ordered)[w,t], digits=2)) / Price $(cost_coffee[t][w])")
+        #         if t != 1 
+        #             println(file,"Previous Stock $(round.(value.(quantities_stocked)[w,t-1], digits=2)) / Sent $(sum(round.(value.(quantities_send)[w,q,t], digits=2) for q in 1:number_of_warehouses)) / Recieved $(sum(round.(value.(quantities_recieved)[w,q,t], digits=2) for q in 1:number_of_warehouses))")
+        #         else 
+        #             println(file,"Previous Stock 2.00 / Sent $(sum(round.(value.(quantities_send)[w,q,t], digits=2) for q in 1:number_of_warehouses)) / Recieved $(sum(round.(value.(quantities_recieved)[w,q,t], digits=2) for q in 1:number_of_warehouses))")
+        #         end
+        #         println(file,"Missed $(round.(value.(quantities_missed)[w,t], digits=2)) / Stock $(round.(value.(quantities_stocked)[w,t], digits=2))")
+        #         println(file,"----")  
+        #     end
+        #     println(file,"-----------------")  # Separator between time steps
+        # end
 
-        # Flush the file to ensure all data is written
-        flush(file)
-        # Close the file
-        close(file)
-        # Open the file 
-        run(`cmd /c start notepad $file_path`)
+        # # Flush the file to ensure all data is written
+        # flush(file)
+        # # Close the file
+        # close(file)
+        # # Open the file 
+        # run(`cmd /c start notepad $file_path`)
         
 
-        #return interesting values
-        return value.(quantities_ordered[:,1]),value.(quantities_send[:,:,1]),value.(quantities_recieved[:,:,1]),value.(quantities_stocked[:,1]),value.(quantities_missed[:,1]),objective_value(model_EB)
+        # Compute the cost of the first day
+        cost_day1 = sum(value.(quantities_ordered[w,1])*cost_coffee[1][w] for w in 1:number_of_warehouses) + sum(value.(quantities_send[w,q,1])*cost_tr[w,q] for w in 1:number_of_warehouses, q in 1:number_of_warehouses)
+        + sum(value.(quantities_missed[w,1])*cost_miss[w] for w in 1:number_of_warehouses)
+
+        # Return interesting values
+        return value.(quantities_ordered[:,1]),value.(quantities_send[:,:,1]),value.(quantities_recieved[:,:,1]),value.(quantities_stocked[:,1]),value.(quantities_missed[:,1]),cost_day1
     else
         return error("No solution.")
     end
 
 end
 
-qo_EB,qs_EB,qr_EB,qst_EB,qm_EB,ov_EB=Make_EV_here_and_now_decision(prices)
+# qo_EB,qs_EB,qr_EB,qst_EB,qm_EB,cost_EB=Make_EV_here_and_now_decision(prices)

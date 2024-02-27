@@ -8,25 +8,22 @@ using JuMP
 using Gurobi
 using Printf
 
-prices=[round.(10 * rand(3), digits=2)]
+# prices=round.(10 * rand(3), digits=2)
 
-function Calculate_OiH_solution(prices)
+# new_prices = round.(map(Float64,map(sample_next, prices)),digits=2)
+
+function Calculate_OiH_solution(prices, new_prices)
     
     # Importation of the inputs from the two stage problem
     number_of_warehouses, W, cost_miss, cost_tr, warehouse_capacities, transport_capacities, 
     initial_stock, number_of_simulation_periods, sim_T, demand_trajectory = load_the_data(2)
-
-    for t in 1:(number_of_simulation_periods-1)
-        next_prices = [sample_next(prices[t][w]) for w in W]
-        push!(prices, next_prices)
-    end
 
     # Transpose matrix to have columns = t and rows = w
     #prices = transpose(hcat(prices...))
 
     #Creation of the parameters of the problem
     # Coffee prices
-    cost_coffee = prices 
+    cost_coffee = [prices,new_prices]
 
     # Creation of the demand, W rows and T columns, 10 everywhere
     demand_coffee = demand_trajectory
@@ -78,41 +75,41 @@ function Calculate_OiH_solution(prices)
         println("Optimal solution found")
         
         # Display of the results in a text file
-        #=
-        # Get the directory of the current script
-        script_directory = @__DIR__
-        # Construct the full file path
-        file_path = joinpath(script_directory, "output.txt")
-        # Open or create a text file
-        file = open(file_path, "w")
+        
+        # # Get the directory of the current script
+        # script_directory = @__DIR__
+        # # Construct the full file path
+        # file_path = joinpath(script_directory, "output.txt")
+        # # Open or create a text file
+        # file = open(file_path, "w")
 
-        # Write inside the text file
-        println(file,"Cost of the solution : $(round.(objective_value(model_OiH), digits=2))")
-        println(file,"-----------------")
-        for t in 1:number_of_simulation_periods
-            println(file, "Time Step: $t")
-            println(file,"----") 
-            # Display other information for the current time step
-            for w in 1:number_of_warehouses 
-                println(file,"Warehouse $w : Demand $(demand_coffee[w,t]) / Ordered $(round.(value.(quantities_ordered)[w,t], digits=2)) / Price $(cost_coffee[t][w])")
-                if t != 1 
-                    println(file,"Previous Stock $(round.(value.(quantities_stocked)[w,t-1], digits=2)) / Sent $(sum(round.(value.(quantities_send)[w,q,t], digits=2) for q in 1:number_of_warehouses)) / Recieved $(sum(round.(value.(quantities_recieved)[w,q,t], digits=2) for q in 1:number_of_warehouses))")
-                else 
-                    println(file,"Previous Stock 2.00 / Sent $(sum(round.(value.(quantities_send)[w,q,t], digits=2) for q in 1:number_of_warehouses)) / Recieved $(sum(round.(value.(quantities_recieved)[w,q,t], digits=2) for q in 1:number_of_warehouses))")
-                end
-                println(file,"Missed $(round.(value.(quantities_missed)[w,t], digits=2)) / Stock $(round.(value.(quantities_stocked)[w,t], digits=2))")
-                println(file,"----")  
-            end
-            println(file,"-----------------")  # Separator between time steps
-        end
+        # # Write inside the text file
+        # println(file,"Cost of the solution : $(round.(objective_value(model_OiH), digits=2))")
+        # println(file,"-----------------")
+        # for t in 1:number_of_simulation_periods
+        #     println(file, "Time Step: $t")
+        #     println(file,"----") 
+        #     # Display other information for the current time step
+        #     for w in 1:number_of_warehouses 
+        #         println(file,"Warehouse $w : Demand $(demand_coffee[w,t]) / Ordered $(round.(value.(quantities_ordered)[w,t], digits=2)) / Price $(cost_coffee[t][w])")
+        #         if t != 1 
+        #             println(file,"Previous Stock $(round.(value.(quantities_stocked)[w,t-1], digits=2)) / Sent $(sum(round.(value.(quantities_send)[w,q,t], digits=2) for q in 1:number_of_warehouses)) / Recieved $(sum(round.(value.(quantities_recieved)[w,q,t], digits=2) for q in 1:number_of_warehouses))")
+        #         else 
+        #             println(file,"Previous Stock 2.00 / Sent $(sum(round.(value.(quantities_send)[w,q,t], digits=2) for q in 1:number_of_warehouses)) / Recieved $(sum(round.(value.(quantities_recieved)[w,q,t], digits=2) for q in 1:number_of_warehouses))")
+        #         end
+        #         println(file,"Missed $(round.(value.(quantities_missed)[w,t], digits=2)) / Stock $(round.(value.(quantities_stocked)[w,t], digits=2))")
+        #         println(file,"----")  
+        #     end
+        #     println(file,"-----------------")  # Separator between time steps
+        # end
 
-        # Flush the file to ensure all data is written
-        flush(file)
-        # Close the file
-        close(file)
-        # Open the file 
-        run(`cmd /c start notepad $file_path`)
-        =#
+        # # Flush the file to ensure all data is written
+        # flush(file)
+        # # Close the file
+        # close(file)
+        # # Open the file 
+        # run(`cmd /c start notepad $file_path`)
+        
 
         #return interesting values
         return value.(quantities_ordered),value.(quantities_send),value.(quantities_recieved),value.(quantities_stocked),value.(quantities_missed),objective_value(model_OiH)
@@ -122,4 +119,4 @@ function Calculate_OiH_solution(prices)
 
 end
 
-qo_OiH,qs_OiH,qr_OiH,qst_OiH,qm_OiH,ov_OiH=Calculate_OiH_solution(prices)
+# qo_OiH,qs_OiH,qr_OiH,qst_OiH,qm_OiH,ov_OiH=Calculate_OiH_solution(prices, new_prices)

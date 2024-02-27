@@ -1,5 +1,6 @@
 #Import useful files
 include("V2_02435_two_stage_problem_data.jl")
+include("V2_Stochastic_now.jl")
 
 #Import packages
 using Random
@@ -7,6 +8,9 @@ using JuMP
 using Gurobi
 using Printf
 
+# prices=round.(10 * rand(3), digits=2)
+# qo_ST,qs_ST,qr_ST,qst_ST,qm_ST,cost_ST=Make_Stochastic_here_and_now_decision(prices,50)
+# day_two_prices = round.(10 * rand(3), digits=2)
 
 function optimal_stage2_decision(day_two_stock, day_two_prices)
     #Importation of the inputs from the two stage problem
@@ -64,29 +68,29 @@ function optimal_stage2_decision(day_two_stock, day_two_prices)
         # Display of the results in a text file
         
 
-        # Get the directory of the current script
-        script_directory = @__DIR__
-        # Construct the full file path
-        file_path = joinpath(script_directory, "output.txt")
-        # Open or create a text file
-        file = open(file_path, "w")
+        # # Get the directory of the current script
+        # script_directory = @__DIR__
+        # # Construct the full file path
+        # file_path = joinpath(script_directory, "output.txt")
+        # # Open or create a text file
+        # file = open(file_path, "w")
 
-        # Write inside the text file
-        println(file,"Cost of the solution : $(round.(objective_value(model_DTWO), digits=2))")
-        println(file,"-----------------")
-        for w in 1:number_of_warehouses 
-            println(file,"Warehouse $w : Demand $(demand_coffee[w]) / Ordered $(round.(value.(quantities_ordered)[w], digits=2)) / Price $(cost_coffee[w])")
-            println(file,"Previous Stock 2.00 / Sent $(sum(round.(value.(quantities_send)[w,q], digits=2) for q in 1:number_of_warehouses)) / Recieved $(sum(round.(value.(quantities_recieved)[w,q], digits=2) for q in 1:number_of_warehouses))")
-            println(file,"Missed $(round.(value.(quantities_missed)[w,], digits=2)) / Stock $(round.(value.(quantities_stocked)[w], digits=2))")
-            println(file,"----")  
-        end
+        # # Write inside the text file
+        # println(file,"Cost of the solution : $(round.(objective_value(model_DTWO), digits=2))")
+        # println(file,"-----------------")
+        # for w in 1:number_of_warehouses 
+        #     println(file,"Warehouse $w : Demand $(demand_coffee[w]) / Ordered $(round.(value.(quantities_ordered)[w], digits=2)) / Price $(cost_coffee[w])")
+        #     println(file,"Previous Stock $(initial_stock[w]) / Sent $(sum(round.(value.(quantities_send)[w,q], digits=2) for q in 1:number_of_warehouses)) / Recieved $(sum(round.(value.(quantities_recieved)[w,q], digits=2) for q in 1:number_of_warehouses))")
+        #     println(file,"Missed $(round.(value.(quantities_missed)[w,], digits=2)) / Stock $(round.(value.(quantities_stocked)[w], digits=2))")
+        #     println(file,"----")  
+        # end
 
-        # Flush the file to ensure all data is written
-        flush(file)
-        # Close the file
-        close(file)
-        # Open the file 
-        run(`cmd /c start notepad $file_path`)
+        # # Flush the file to ensure all data is written
+        # flush(file)
+        # # Close the file
+        # close(file)
+        # # Open the file 
+        # run(`cmd /c start notepad $file_path`)
         
 
         #return interesting values
@@ -97,7 +101,4 @@ function optimal_stage2_decision(day_two_stock, day_two_prices)
 
 end
 
-prices = round.(10 * rand(3), digits=2)
-qo_ST,qs_ST,qr_ST,qst_ST,qm_ST,ov_ST=Make_Stochastic_here_and_now_decision(prices,50)
-day_two_prices = round.(10 * rand(3), digits=2)
-optimal_stage2_decision(qst_ST, day_two_prices)
+# qo_D2,qs_D2,qr_D2,qst_D2,qm_D2,ov_D2 = optimal_stage2_decision(qst_ST, day_two_prices)

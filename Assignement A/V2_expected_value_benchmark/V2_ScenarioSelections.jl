@@ -13,16 +13,16 @@ include("V2_price_process.jl")
 # All of the scenario selection functions take the matrix of all scenarios (next_prices -> 3xN) 
 # and the number the scenarios shall be reduced to (k) as arguments and returns the 
 # reduced scenario matrix (3xk) and the sceanrios' new probabilities (Probs -> 1xk)
-prices=round.(10 * rand(3), digits=2)
+# prices=round.(10 * rand(3), digits=2)
 number_of_warehouses = 3
 number_of_scenarios = 1000
-next_prices = Array{Float64}(undef, number_of_warehouses, number_of_scenarios)
-for w in 1:number_of_warehouses
-    for n in 1:number_of_scenarios
-        next_prices[w,n] = sample_next(prices[w])
-    end
-end    
-N=50
+# next_prices = Array{Float64}(undef, number_of_warehouses, number_of_scenarios)
+# for w in 1:number_of_warehouses
+#     for n in 1:number_of_scenarios
+#         next_prices[w,n] = sample_next(prices[w])
+#     end
+# end    
+# N=50
 
 
 function kmeans_selection(next_prices, no_of_selected_scnearios)

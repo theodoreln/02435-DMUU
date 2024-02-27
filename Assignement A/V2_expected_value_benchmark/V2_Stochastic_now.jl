@@ -32,7 +32,6 @@ function Make_Stochastic_here_and_now_decision(prices, no_of_selected_scnearios)
     reduced_next_prices, Probs = FastForward(next_prices, no_of_selected_scnearios)
     next_prices = reduced_next_prices
     number_of_scenarios = no_of_selected_scnearios
-   
 
     #Creation of the parameters of the problem
     # Creation of the demand, W rows and T columns, 10 everywhere
@@ -95,12 +94,16 @@ function Make_Stochastic_here_and_now_decision(prices, no_of_selected_scnearios)
     if termination_status(model_ST) == MOI.OPTIMAL
         println("Optimal solution found")
 
+        # Compute the cost of the first day
+        cost_day1 = sum(value.(quantities_ordered_now[w])*prices[w] for w in 1:number_of_warehouses) + sum(value.(quantities_send_now[w,q])*cost_tr[w,q] for w in 1:number_of_warehouses, q in 1:number_of_warehouses)
+        + sum(value.(quantities_missed_now[w])*cost_miss[w] for w in 1:number_of_warehouses)
+
         #return interesting values
-        return value.(quantities_ordered_now),value.(quantities_send_now),value.(quantities_recieved_now),value.(quantities_stocked_now),value.(quantities_missed_now),objective_value(model_ST)
+        return value.(quantities_ordered_now),value.(quantities_send_now),value.(quantities_recieved_now),value.(quantities_stocked_now),value.(quantities_missed_now),cost_day1
     else
         return error("No solution.")
     end
 
 end
 
-qo_ST,qs_ST,qr_ST,qst_ST,qm_ST,ov_ST=Make_Stochastic_here_and_now_decision(prices,50)
+# qo_ST,qs_ST,qr_ST,qst_ST,qm_ST,cost_ST=Make_Stochastic_here_and_now_decision(prices,50)

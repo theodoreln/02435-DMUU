@@ -1,6 +1,7 @@
 #Import useful files
 include("V2_02435_two_stage_problem_data.jl")
 include("V2_price_process.jl")
+include("V2_ScenarioSelections.jl")
 
 #Import packages
 using Random
@@ -8,16 +9,15 @@ using JuMP
 using Gurobi
 using Printf
 
+# prices=round.(10 * rand(3), digits=2)
 
-prices=round.(10 * rand(3), digits=2)
-
-function Make_Stochastic_here_and_now_decision(prices).
+function Make_Stochastic_here_and_now_decision(prices, no_of_selected_scnearios)
     
     #Importation of the inputs from the two stage problem
     number_of_warehouses, W, cost_miss, cost_tr, warehouse_capacities, transport_capacities, initial_stock, number_of_simulation_periods, sim_T, demand_trajectory = load_the_data()
 
     #Number of scenarios
-    number_of_scenarios = 100
+    number_of_scenarios = 1000
     #number_list = collect(1:number_of_scenarios)
         
     #Computation of the prices of different scenarios at t=2
@@ -28,6 +28,11 @@ function Make_Stochastic_here_and_now_decision(prices).
         end
     end    
 
+    #Scenario reduction
+    reduced_next_prices, Probs = kmeans_selection(next_prices, no_of_selected_scnearios)
+    next_prices = reduced_next_prices
+    number_of_scenarios = no_of_selected_scnearios
+    print(Probs)
 
     #Creation of the parameters of the problem
     # Creation of the demand, W rows and T columns, 10 everywhere
@@ -55,7 +60,7 @@ function Make_Stochastic_here_and_now_decision(prices).
     
     #Objective function
     @objective(model_ST, Min, sum(quantities_ordered_now[w]*prices[w] for w in 1:number_of_warehouses) + sum(quantities_send_now[w,q]*cost_tr[w,q] for w in 1:number_of_warehouses, q in 1:number_of_warehouses)
-    + sum(quantities_missed_now[w]*cost_miss[w] for w in 1:number_of_warehouses) + sum(1/number_of_scenarios*(sum(quantities_ordered_sec[w,n]*next_prices[w,n] for w in 1:number_of_warehouses)
+    + sum(quantities_missed_now[w]*cost_miss[w] for w in 1:number_of_warehouses) + sum(Probs[n]*(sum(quantities_ordered_sec[w,n]*next_prices[w,n] for w in 1:number_of_warehouses)
     + sum(quantities_send_sec[w,q,n]*cost_tr[w,q] for w in 1:number_of_warehouses, q in 1:number_of_warehouses)
     + sum(quantities_missed_sec[w,n]*cost_miss[w] for w in 1:number_of_warehouses)) for n in 1:number_of_scenarios))
 
@@ -98,6 +103,4 @@ function Make_Stochastic_here_and_now_decision(prices).
 
 end
 
-#qo_ST,qs_ST,qr_ST,qst_ST,qm_ST,ov_ST=Make_Stochastic_here_and_now_decision(prices,"K-means")
-#qo_ST2,qs_ST2,qr_ST2,qst_ST2,qm_ST2,ov_ST2=Make_Stochastic_here_and_now_decision(prices,"K-medoids")
-#qo_ST3,qs_ST3,qr_ST3,qst_ST3,qm_ST3,ov_ST3=Make_Stochastic_here_and_now_decision(prices,"FastForward")
+# qo_ST,qs_ST,qr_ST,qst_ST,qm_ST,ov_ST=Make_Stochastic_here_and_now_decision(prices,50)

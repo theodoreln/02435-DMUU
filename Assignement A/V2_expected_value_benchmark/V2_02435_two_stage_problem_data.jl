@@ -1,11 +1,11 @@
 using Random
 
-function load_the_data()
+function load_the_data(number_of_days)
 
     number_of_warehouses = 3
     W = collect(1:number_of_warehouses)
 
-    number_of_simulation_periods = 2
+    number_of_simulation_periods = number_of_days
     sim_T = collect(1:number_of_simulation_periods)
 
     #Cost of missing demand at w

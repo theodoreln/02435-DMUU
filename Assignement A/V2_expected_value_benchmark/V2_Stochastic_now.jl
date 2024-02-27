@@ -14,7 +14,7 @@ using Printf
 function Make_Stochastic_here_and_now_decision(prices, no_of_selected_scnearios)
     
     #Importation of the inputs from the two stage problem
-    number_of_warehouses, W, cost_miss, cost_tr, warehouse_capacities, transport_capacities, initial_stock, number_of_simulation_periods, sim_T, demand_trajectory = load_the_data()
+    number_of_warehouses, W, cost_miss, cost_tr, warehouse_capacities, transport_capacities, initial_stock, number_of_simulation_periods, sim_T, demand_trajectory = load_the_data(2)
 
     #Number of scenarios
     number_of_scenarios = 1000

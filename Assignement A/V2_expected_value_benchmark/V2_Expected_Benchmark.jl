@@ -14,7 +14,7 @@ prices=round.(10 * rand(3), digits=2)
 function Make_EV_here_and_now_decision(prices)
     
     #Importation of the inputs from the two stage problem
-    number_of_warehouses, W, cost_miss, cost_tr, warehouse_capacities, transport_capacities, initial_stock, number_of_simulation_periods, sim_T, demand_trajectory = load_the_data()
+    number_of_warehouses, W, cost_miss, cost_tr, warehouse_capacities, transport_capacities, initial_stock, number_of_simulation_periods, sim_T, demand_trajectory = load_the_data(2)
     
     #Computation of the prices at t=2
     new_prices=Array{Float64}(undef,number_of_warehouses)

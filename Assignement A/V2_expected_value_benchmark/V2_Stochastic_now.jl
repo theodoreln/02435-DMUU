@@ -29,10 +29,10 @@ function Make_Stochastic_here_and_now_decision(prices, no_of_selected_scnearios)
     end    
 
     #Scenario reduction
-    reduced_next_prices, Probs = kmeans_selection(next_prices, no_of_selected_scnearios)
+    reduced_next_prices, Probs = FastForward(next_prices, no_of_selected_scnearios)
     next_prices = reduced_next_prices
     number_of_scenarios = no_of_selected_scnearios
-    print(Probs)
+   
 
     #Creation of the parameters of the problem
     # Creation of the demand, W rows and T columns, 10 everywhere
@@ -103,4 +103,4 @@ function Make_Stochastic_here_and_now_decision(prices, no_of_selected_scnearios)
 
 end
 
-# qo_ST,qs_ST,qr_ST,qst_ST,qm_ST,ov_ST=Make_Stochastic_here_and_now_decision(prices,50)
+qo_ST,qs_ST,qr_ST,qst_ST,qm_ST,ov_ST=Make_Stochastic_here_and_now_decision(prices,50)

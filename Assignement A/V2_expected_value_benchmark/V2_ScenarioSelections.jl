@@ -15,36 +15,36 @@ include("V2_price_process.jl")
 # reduced scenario matrix (3xk) and the sceanrios' new probabilities (Probs -> 1xk)
 prices=round.(10 * rand(3), digits=2)
 number_of_warehouses = 3
-number_of_scenarios = 20
+number_of_scenarios = 1000
 next_prices = Array{Float64}(undef, number_of_warehouses, number_of_scenarios)
 for w in 1:number_of_warehouses
     for n in 1:number_of_scenarios
         next_prices[w,n] = sample_next(prices[w])
     end
 end    
-N=5
+N=50
 
 
 function kmeans_selection(next_prices, no_of_selected_scnearios)
 
     N = no_of_selected_scnearios
-    clusters = kmeans(next_prices, N; maxiter=200, display=:iter)
+    clusters = kmeans(next_prices, N; maxiter=2000, display=:iter)
     clustered_prices = clusters.centers # get the cluster centers
         
     # Probabilities of data point belonging to cluster 
     scenario_assignments = assignments(clusters) #Assigning which scenario belongs to which cluster 
-        
+    
     Probs = zeros(N)
     for i in scenario_assignments
         Probs[i] = Probs[i] + 1/number_of_scenarios
     end
     reduced_next_prices= clustered_prices # Matrix of scenarios with only the reduced scenarios
-
+    
     return reduced_next_prices, Probs
 end
 
-print("next prces:", next_prices)
-print("kmeans: ",kmeans_selection(next_prices, N))
+
+#print("kmeans: ",kmeans_selection(next_prices, N))
 
 function kmedoids_selection(next_prices, no_of_selected_scnearios)
     N = no_of_selected_scnearios
@@ -65,14 +65,14 @@ function kmedoids_selection(next_prices, no_of_selected_scnearios)
     # Probabilities of the medoids
     Probs = zeros(N)
     for i in scenario_assignments
-        Probs[i] = Probs[i] + round(1/number_of_scenarios; digits = 2)
+        Probs[i] = Probs[i] + 1/number_of_scenarios
     end
-
+    
     reduced_next_prices = medoids_values
     return reduced_next_prices, Probs
 end
     
-print("kmedoids: ", kmedoids_selection(next_prices, N))
+#print("kmedoids: ", kmedoids_selection(next_prices, N))
 
 function FastForward(next_prices, no_of_selected_scnearios)
     N = no_of_selected_scnearios
@@ -164,8 +164,6 @@ function FastForward(next_prices, no_of_selected_scnearios)
     end
     Probs = Probs_og[selected_indices]
     reduced_next_prices = subset
-
+    
     return reduced_next_prices, Probs
 end
-
-print("FastForward: ",FastForward(next_prices,N))

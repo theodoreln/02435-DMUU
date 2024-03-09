@@ -44,8 +44,6 @@ function kmeans_selection(next_prices, no_of_selected_scnearios)
 end
 
 
-#print("kmeans: ",kmeans_selection(next_prices, N))
-
 function kmedoids_selection(next_prices, no_of_selected_scnearios)
     N = no_of_selected_scnearios
     number_of_warehouses = 3
@@ -72,17 +70,15 @@ function kmedoids_selection(next_prices, no_of_selected_scnearios)
     return reduced_next_prices, Probs
 end
     
-#print("kmedoids: ", kmedoids_selection(next_prices, N))
-
 function FastForward(next_prices, no_of_selected_scnearios)
     N = no_of_selected_scnearios
-    original = next_prices
+    original = copy(next_prices)
     subset=[]
 
     Distance_matrix = pairwise(Euclidean(), next_prices; dims=2)  # Create Euclidean Distance Distance_matrix
     Probs = fill(1/number_of_scenarios, number_of_scenarios) # Probability vector with same probability for each scenario
-    Probs_og = Probs
-    Distance_matrix_og = Distance_matrix
+    Probs_og = copy(Probs)
+    Distance_matrix_og = copy(Distance_matrix)
     n_scenarios_updated = size(Distance_matrix,1)
     
     # Selecting N scenarios with the shortest Kantorovich Distance
@@ -97,15 +93,15 @@ function FastForward(next_prices, no_of_selected_scnearios)
             end
             if start == true
                 start = false
-                d_k_min = d_k
+                d_k_min = copy(d_k)
             elseif d_k < d_k_min
-                d_k_min = d_k
+                d_k_min = copy(d_k)
                 selected_s = line #saves index of selected scenario
             end
             d_k = 0
         end
         # Update Distance matrix 
-        Distance_matrix_old = Distance_matrix
+        Distance_matrix_old = copy(Distance_matrix)
         Distance_matrix = Array{Float64}(undef, n_scenarios_updated-1, n_scenarios_updated-1)
         for line in 1:(selected_s-1)
             for column in 1:(selected_s-1)
@@ -152,9 +148,9 @@ function FastForward(next_prices, no_of_selected_scnearios)
             d_k = Distance_matrix_og[r,s]
             if start == true
                 start = false
-                d_k_min = d_k
+                d_k_min = copy(d_k)
             elseif d_k<d_k_min
-                d_k_min = d_k
+                d_k_min = copy(d_k)
                 closest_scen = s
             end
         end

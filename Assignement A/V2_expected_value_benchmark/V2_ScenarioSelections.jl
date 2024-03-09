@@ -77,8 +77,8 @@ function FastForward(next_prices, no_of_selected_scnearios)
 
     Distance_matrix = pairwise(Euclidean(), next_prices; dims=2)  # Create Euclidean Distance Distance_matrix
     Probs = fill(1/number_of_scenarios, number_of_scenarios) # Probability vector with same probability for each scenario
-    Probs_og = copy(Probs)
-    Distance_matrix_og = copy(Distance_matrix)
+    Probs_og = deepcopy(Probs)
+    Distance_matrix_og = deepcopy(Distance_matrix)
     n_scenarios_updated = size(Distance_matrix,1)
     
     # Selecting N scenarios with the shortest Kantorovich Distance
@@ -101,7 +101,7 @@ function FastForward(next_prices, no_of_selected_scnearios)
             d_k = 0
         end
         # Update Distance matrix 
-        Distance_matrix_old = copy(Distance_matrix)
+        Distance_matrix_old = deepcopy(Distance_matrix)
         Distance_matrix = Array{Float64}(undef, n_scenarios_updated-1, n_scenarios_updated-1)
         for line in 1:(selected_s-1)
             for column in 1:(selected_s-1)

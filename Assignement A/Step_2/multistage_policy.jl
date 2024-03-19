@@ -23,7 +23,7 @@ Random.seed!(seed)
 function make_multistage_here_and_now_decision(number_of_sim_periods, tau, current_stock, current_prices, look_ahead_days, nb_initial_scenarios, granularity, nb_reduced_scenarios)
     
     # Control the number of ahead day to not overpass the limit 
-    # The variable "actual_look_ahead_days" will decide how much day ahead we are going to look
+    # The variable "actual_look_ahead_days" will decide how much day ahead we are going to look at
     # Its value can vary between "look_ahead_days" and 1 !!!
     if look_ahead_days > number_of_sim_periods - tau
         actual_look_ahead_days = number_of_sim_periods-tau+1
@@ -155,9 +155,8 @@ end
 function kmedoids_selection(number_of_warehouses, prices_trajectory_scenarios, nb_initial_scenarios, nb_reduced_scenarios)
     
     reshaped_array = reshape(prices_trajectory_scenarios, :, size(prices_trajectory_scenarios, 3))
-
     # Calculate Euclidean Distance matrix (size: number_of_scenarios x number_of_scenarios)
-    Distance_matrix = pairwise(Euclidean(), next_prices; dims=2)
+    Distance_matrix = pairwise(Euclidean(), reshaped_array; dims=2)
     # Find the clusters 
     clusters = kmedoids(Distance_matrix, nb_reduced_scenarios; maxiter=200, display=:iter)
     medoids_indices = clusters.medoids
@@ -179,6 +178,95 @@ function kmedoids_selection(number_of_warehouses, prices_trajectory_scenarios, n
 
     return prices_trajectory_reduced, Probs
 end
+
+
+#Performs fast forward selection for the given parameters
+#D = Symmetric distance matrix
+#p = vector of probabilities
+#n = target number of scenarios
+#Returns Array with 2 element, [1] = list of probabilities, [2] = list of selected scenario indices
+function FastForwardSelection(number_of_warehouses, prices_trajectory_scenarios, nb_initial_scenarios, nb_reduced_scenarios, actual_look_ahead_days)
+    reshaped_array = reshape(prices_trajectory_scenarios, :, size(prices_trajectory_scenarios, 3))
+    D = pairwise(Euclidean(), reshaped_array; dims=2)  # Create Euclidean Distance Distance_matrix
+    p = fill(1/nb_initial_scenarios, nb_initial_scenarios)
+    init_d = copy(D)
+    n= nb_reduced_scenarios
+    not_selected_scenarios = collect(range(1,length(D[:,1]);step=1))
+    selected_scenarios = []
+    while length(selected_scenarios) < n
+        selected = select_scenario(D, p, not_selected_scenarios)
+        deleteat!(not_selected_scenarios, findfirst(isequal(selected), not_selected_scenarios))
+        push!(selected_scenarios, selected)
+        D = UpdateDistanceMatrix(D, selected, not_selected_scenarios)
+    end
+    result_prob = RedistributeProbabilities(init_d, p, selected_scenarios, not_selected_scenarios)
+    reduced_next_prices = Array{Float64}(undef, number_of_warehouses*actual_look_ahead_days, n)
+    for i in 1:n
+        reduced_next_prices[:,i] = reshaped_array[:,selected_scenarios[i]]
+    end
+    prices_trajectory_reduced = reshape(reduced_next_prices, size(prices_trajectory_scenarios)[1], size(prices_trajectory_scenarios)[2], :)
+
+    return prices_trajectory_reduced, result_prob
+end
+
+#Redistributes probabilities at the end of the fast forward selection
+#D = original distance matrix
+#p = probabilities
+#selected_scenarios = indices of selected scenarios
+#not_selected_scenarios = indices of non selected scenarios
+function RedistributeProbabilities(D, p, selected_scenarios, not_selected_scenarios)
+    probabilities = p
+    for s in not_selected_scenarios
+        min_idx = -1
+        min_dist = Inf
+        for i in selected_scenarios
+            if D[s,i] < min_dist
+                min_idx = i
+                min_dist = D[s,i]
+            end
+        end
+        probabilities[min_idx] = probabilities[min_idx] + p[s]
+        probabilities[s] = 0.0
+    end
+    new_probabilities = [probabilities[i] for i in selected_scenarios]
+    return new_probabilities
+end
+
+#Updates the distance matrix in the fast forward selection
+#D = current distance matrix
+#selected = index of scenario selected in this iteration
+#scenarios = index list of not selected scenarios
+function UpdateDistanceMatrix(D, selected, not_selected_scenarios)
+    for s in not_selected_scenarios
+        if s!=selected
+            for s2 in not_selected_scenarios
+                if s2!=selected
+                    D[s,s2] = min(D[s,s2], D[s,selected])
+                end
+            end
+        end
+    end
+    return D
+end
+
+#Selects the scenario idx with minimum Kantorovic distance
+#D = Distance matrix
+#p = probabilities
+#scenarios = not selected scenarios
+function select_scenario(D, p, not_selected_scenarios)
+    min_dist = Inf
+    min_idx = -1
+    for s in not_selected_scenarios
+        dist = sum(p[s2]*D[s2,s] for s2 in not_selected_scenarios if s!=s2)
+        if dist < min_dist
+            min_dist = dist
+            min_idx = s
+        end
+    end
+    return min_idx
+end
+
+
 
 # Populating the non-anticipativity sets
 function Populating_sets(actual_look_ahead_days, prices_trajectory_reduced, nb_reduced_scenarios)
@@ -235,3 +323,17 @@ number_of_experiments, Expers, Price_experiments = simulation_experiments_creati
 # prices_trajectory_reduced .= round.(prices_trajectory_reduced ./ granularity) .* granularity
 # Sets = Populating_sets(actual_look_ahead_days, prices_trajectory_reduced, nb_reduced_scenarios)
 # Keys_list = collect(keys(Sets))
+
+
+# # Testing FastForward
+# current_prices = Price_experiments[1,:,1]
+# nb_initial_scenarios = 100
+# nb_reduced_scenarios = 20
+# granularity = 0.5
+# actual_look_ahead_days = 3
+# prices_trajectory= Generate_scenarios(number_of_warehouses, W, current_prices, nb_initial_scenarios, actual_look_ahead_days)
+# prices_trajectory .= round.(prices_trajectory ./ granularity) .* granularity
+# reshaped_data = reshape(prices_trajectory, :, size(prices_trajectory, 3))
+
+# print(kmeans_selection(prices_trajectory, nb_initial_scenarios, nb_reduced_scenarios, granularity))
+# print(FastForwardSelection(number_of_warehouses, prices_trajectory, nb_initial_scenarios, nb_reduced_scenarios, actual_look_ahead_days))

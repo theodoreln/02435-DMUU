@@ -14,16 +14,12 @@ using JuMP
 using Gurobi
 using Printf
 using Clustering
+using Distances
 
-# Set the desired seed
-seed = 1234
-# Fix the seed
-Random.seed!(seed)
-
-function make_multistage_here_and_now_decision(number_of_sim_periods, tau, current_stock, current_prices, look_ahead_days, nb_initial_scenarios, granularity, nb_reduced_scenarios)
+function make_multistage_here_and_now_decision(number_of_sim_periods, tau, current_stock, current_prices, look_ahead_days, nb_initial_scenarios, granularity, nb_reduced_scenarios, type_red)
     
     # Control the number of ahead day to not overpass the limit 
-    # The variable "actual_look_ahead_days" will decide how much day ahead we are going to look at
+    # The variable "actual_look_ahead_days" will decide how much day ahead we are going to look
     # Its value can vary between "look_ahead_days" and 1 !!!
     if look_ahead_days > number_of_sim_periods - tau
         actual_look_ahead_days = number_of_sim_periods-tau+1
@@ -39,7 +35,13 @@ function make_multistage_here_and_now_decision(number_of_sim_periods, tau, curre
     prices_trajectory_scenarios .= round.(prices_trajectory_scenarios ./ granularity) .* granularity
 
     #Reduce the number of scenarios
-    prices_trajectory_reduced, Probs = kmeans_selection(prices_trajectory_scenarios, nb_initial_scenarios, nb_reduced_scenarios, granularity)
+    if type_red == "kmeans" 
+        prices_trajectory_reduced, Probs = kmeans_selection(prices_trajectory_scenarios, nb_initial_scenarios, nb_reduced_scenarios, granularity)
+    elseif type_red == "kmedoids"
+        prices_trajectory_reduced, Probs = kmedoids_selection(number_of_warehouses, prices_trajectory_scenarios, nb_initial_scenarios, nb_reduced_scenarios, actual_look_ahead_days)
+    else 
+        prices_trajectory_reduced, Probs = FastForwardSelection(number_of_warehouses, prices_trajectory_scenarios, nb_initial_scenarios, nb_reduced_scenarios, actual_look_ahead_days)
+    end
 
     #Populate
     Sets = Populating_sets(actual_look_ahead_days, prices_trajectory_reduced, nb_reduced_scenarios)
@@ -62,9 +64,9 @@ function make_multistage_here_and_now_decision(number_of_sim_periods, tau, curre
     @variable(model, quantities_missed[1:number_of_warehouses, 1:actual_look_ahead_days, 1:nb_reduced_scenarios]>=0)
 
     #Objective function
-    @objective(model, Min, sum(Probs[s]*sum(quantities_ordered[w,t,s]*prices_trajectory_reduced[w,t,s] for w in 1:number_of_warehouses, t in 1:actual_look_ahead_days) 
+    @objective(model, Min, sum(Probs[s]*(sum(quantities_ordered[w,t,s]*prices_trajectory_reduced[w,t,s] for w in 1:number_of_warehouses, t in 1:actual_look_ahead_days) 
     + sum(quantities_send[w,q,t,s]*cost_tr[w,q] for w in 1:number_of_warehouses, q in 1:number_of_warehouses, t in 1:actual_look_ahead_days)
-    + sum(quantities_missed[w,t,s]*cost_miss[w] for w in 1:number_of_warehouses, t in 1:actual_look_ahead_days) for s in 1:nb_reduced_scenarios))
+    + sum(quantities_missed[w,t,s]*cost_miss[w] for w in 1:number_of_warehouses, t in 1:actual_look_ahead_days)) for s in 1:nb_reduced_scenarios))
 
     #Constraints of the problem
     # Constraint on stockage capacities limited to the maximum capacities
@@ -152,29 +154,37 @@ function kmeans_selection(prices_trajectory_scenarios, nb_initial_scenarios, nb_
 end
 
 # Kmedoids selections
-function kmedoids_selection(number_of_warehouses, prices_trajectory_scenarios, nb_initial_scenarios, nb_reduced_scenarios)
-    
-    reshaped_array = reshape(prices_trajectory_scenarios, :, size(prices_trajectory_scenarios, 3))
-    # Calculate Euclidean Distance matrix (size: number_of_scenarios x number_of_scenarios)
-    Distance_matrix = pairwise(Euclidean(), reshaped_array; dims=2)
-    # Find the clusters 
-    clusters = kmedoids(Distance_matrix, nb_reduced_scenarios; maxiter=200, display=:iter)
-    medoids_indices = clusters.medoids
-    medoids_values = zeros(number_of_warehouses,N)
-         
-    for i in 1:N
-        medoids_values[:,i] = reshaped_array[:,medoids_indices[i]]
-    end
+function kmedoids_selection(number_of_warehouses, prices_trajectory_scenarios, nb_initial_scenarios, nb_reduced_scenarios, actual_look_ahead_days)
+
+    if actual_look_ahead_days != 1
+        reshaped_array = reshape(prices_trajectory_scenarios, :, size(prices_trajectory_scenarios, 3))
+        # Calculate Euclidean Distance matrix (size: number_of_scenarios x number_of_scenarios)
+        Distance_matrix = pairwise(Euclidean(), reshaped_array; dims=2)
+        # Find the clusters 
+        clusters = kmedoids(Distance_matrix, nb_reduced_scenarios; maxiter=200)
+        medoids_indices = clusters.medoids
+        medoids_values = zeros(number_of_warehouses*actual_look_ahead_days,nb_reduced_scenarios)
+            
+        for i in 1:nb_reduced_scenarios
+            medoids_values[:,i] = reshaped_array[:,medoids_indices[i]]
+        end
+            
+        scenario_assignments = assignments(clusters) #Assigning which scenario belongs to which cluster 
+            
+        # Probabilities of the medoids
+        Probs = zeros(nb_reduced_scenarios)
+        for i in scenario_assignments
+            Probs[i] = Probs[i] + 1/nb_initial_scenarios
+        end
         
-    scenario_assignments = assignments(clusters) #Assigning which scenario belongs to which cluster 
-        
-    # Probabilities of the medoids
-    Probs = zeros(N)
-    for i in scenario_assignments
-        Probs[i] = Probs[i] + 1/nb_initial_scenarios
+        prices_trajectory_reduced = reshape(medoids_values, size(prices_trajectory_scenarios)[1], size(prices_trajectory_scenarios)[2], :)
+    else
+        prices_trajectory_reduced = prices_trajectory_scenarios[:,:,1:nb_reduced_scenarios]
+        Probs = zeros(nb_reduced_scenarios) 
+        for i in 1:nb_reduced_scenarios
+            Probs[i] = 1/nb_reduced_scenarios
+        end
     end
-    
-    prices_trajectory_reduced = reshape(medoids_values, size(prices_trajectory_scenarios)[1], size(prices_trajectory_scenarios)[2], :)
 
     return prices_trajectory_reduced, Probs
 end
@@ -186,26 +196,35 @@ end
 #n = target number of scenarios
 #Returns Array with 2 element, [1] = list of probabilities, [2] = list of selected scenario indices
 function FastForwardSelection(number_of_warehouses, prices_trajectory_scenarios, nb_initial_scenarios, nb_reduced_scenarios, actual_look_ahead_days)
-    reshaped_array = reshape(prices_trajectory_scenarios, :, size(prices_trajectory_scenarios, 3))
-    D = pairwise(Euclidean(), reshaped_array; dims=2)  # Create Euclidean Distance Distance_matrix
-    p = fill(1/nb_initial_scenarios, nb_initial_scenarios)
-    init_d = copy(D)
-    n= nb_reduced_scenarios
-    not_selected_scenarios = collect(range(1,length(D[:,1]);step=1))
-    selected_scenarios = []
-    while length(selected_scenarios) < n
-        selected = select_scenario(D, p, not_selected_scenarios)
-        deleteat!(not_selected_scenarios, findfirst(isequal(selected), not_selected_scenarios))
-        push!(selected_scenarios, selected)
-        D = UpdateDistanceMatrix(D, selected, not_selected_scenarios)
-    end
-    result_prob = RedistributeProbabilities(init_d, p, selected_scenarios, not_selected_scenarios)
-    reduced_next_prices = Array{Float64}(undef, number_of_warehouses*actual_look_ahead_days, n)
-    for i in 1:n
-        reduced_next_prices[:,i] = reshaped_array[:,selected_scenarios[i]]
-    end
-    prices_trajectory_reduced = reshape(reduced_next_prices, size(prices_trajectory_scenarios)[1], size(prices_trajectory_scenarios)[2], :)
-
+    
+    if actual_look_ahead_days != 1
+        reshaped_array = reshape(prices_trajectory_scenarios, :, size(prices_trajectory_scenarios, 3))
+        # Calculate Euclidean Distance matrix (size: number_of_scenarios x number_of_scenarios)
+        Distance_matrix = pairwise(Euclidean(), reshaped_array; dims=2)
+        p = fill(1/nb_initial_scenarios, nb_initial_scenarios)
+        init_d = copy(Distance_matrix)
+        n= nb_reduced_scenarios
+        not_selected_scenarios = collect(range(1,length(Distance_matrix[:,1]);step=1))
+        selected_scenarios = []
+        while length(selected_scenarios) < n
+            selected = select_scenario(Distance_matrix, p, not_selected_scenarios)
+            deleteat!(not_selected_scenarios, findfirst(isequal(selected), not_selected_scenarios))
+            push!(selected_scenarios, selected)
+            Distance_matrix = UpdateDistanceMatrix(Distance_matrix, selected, not_selected_scenarios)
+        end
+        result_prob = RedistributeProbabilities(init_d, p, selected_scenarios, not_selected_scenarios)
+        reduced_next_prices = Array{Float64}(undef, number_of_warehouses*actual_look_ahead_days, n)
+        for i in 1:n
+            reduced_next_prices[:,i] = reshaped_array[:,selected_scenarios[i]]
+        end
+        prices_trajectory_reduced = reshape(reduced_next_prices, size(prices_trajectory_scenarios)[1], size(prices_trajectory_scenarios)[2], :)
+    else 
+        prices_trajectory_reduced = prices_trajectory_scenarios[:,:,1:nb_reduced_scenarios]
+        result_prob = zeros(nb_reduced_scenarios) 
+        for i in 1:nb_reduced_scenarios
+            result_prob[i] = 1/nb_reduced_scenarios
+        end
+    end 
     return prices_trajectory_reduced, result_prob
 end
 
@@ -267,7 +286,6 @@ function select_scenario(D, p, not_selected_scenarios)
 end
 
 
-
 # Populating the non-anticipativity sets
 function Populating_sets(actual_look_ahead_days, prices_trajectory_reduced, nb_reduced_scenarios)
     
@@ -312,9 +330,25 @@ number_of_experiments, Expers, Price_experiments = simulation_experiments_creati
 # current_prices = Price_experiments[1,:,1]
 # nb_initial_scenarios = 1000
 # nb_reduced_scenarios = 50
-# actual_look_ahead_days = 3
+# actual_look_ahead_days = 1
 # granularity = 0.5
 # prices_trajectory = Generate_scenarios(number_of_warehouses, W, current_prices, nb_initial_scenarios, actual_look_ahead_days)
+# reshaped_array = reshape(prices_trajectory, :, size(prices_trajectory, 3))
+# Distance_matrix = pairwise(Euclidean(), reshaped_array; dims=2)
+# clusters = kmedoids(Distance_matrix, nb_reduced_scenarios; maxiter=200, display=:iter)
+# medoids_indices = clusters.medoids
+# medoids_values = zeros(number_of_warehouses*actual_look_ahead_days,nb_reduced_scenarios)
+# for i in 1:nb_reduced_scenarios
+#     medoids_values[:,i] = reshaped_array[:,medoids_indices[i]]
+# end
+# scenario_assignments = assignments(clusters) #Assigning which scenario belongs to which cluster 
+# # Probabilities of the medoids
+# Probs = zeros(nb_reduced_scenarios)
+# for i in scenario_assignments
+#     Probs[i] = Probs[i] + 1/nb_initial_scenarios
+# end
+# prices_trajectory_reduced = reshape(medoids_values, size(prices_trajectory)[1], size(prices_trajectory)[2], :)
+
 # prices_trajectory .= round.(prices_trajectory ./ granularity) .* granularity
 # reshaped_data = reshape(prices_trajectory, :, size(prices_trajectory, 3))
 # clusters = kmeans(reshaped_data, nb_reduced_scenarios; maxiter=2000)
@@ -324,8 +358,7 @@ number_of_experiments, Expers, Price_experiments = simulation_experiments_creati
 # Sets = Populating_sets(actual_look_ahead_days, prices_trajectory_reduced, nb_reduced_scenarios)
 # Keys_list = collect(keys(Sets))
 
-
-# # Testing FastForward
+# Testing FastForward
 # current_prices = Price_experiments[1,:,1]
 # nb_initial_scenarios = 100
 # nb_reduced_scenarios = 20

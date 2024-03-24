@@ -34,7 +34,7 @@ function make_multistage_here_and_now_decision(number_of_sim_periods, tau, curre
     # Discretize prices
     prices_trajectory_scenarios .= round.(prices_trajectory_scenarios ./ granularity) .* granularity
 
-    #Reduce the number of scenarios
+    #Select a scenario reduction method and reduce the number of scenarios
     if type_red == "kmeans" 
         prices_trajectory_reduced, Probs = kmeans_selection(prices_trajectory_scenarios, nb_initial_scenarios, nb_reduced_scenarios, granularity)
     elseif type_red == "kmedoids"
@@ -43,7 +43,7 @@ function make_multistage_here_and_now_decision(number_of_sim_periods, tau, curre
         prices_trajectory_reduced, Probs = FastForwardSelection(number_of_warehouses, prices_trajectory_scenarios, nb_initial_scenarios, nb_reduced_scenarios, actual_look_ahead_days)
     end
 
-    #Populate
+    #Populate the non-anticipativity sets
     Sets = Populating_sets(actual_look_ahead_days, prices_trajectory_reduced, nb_reduced_scenarios)
 
     ######################
@@ -144,7 +144,7 @@ function kmeans_selection(prices_trajectory_scenarios, nb_initial_scenarios, nb_
     
     Probs = zeros(nb_reduced_scenarios)
     for i in scenario_assignments
-        Probs[i] = Probs[i] + 1/nb_initial_scenarios
+        Probs[i] = Probs[i] + 1/nb_initial_scenarios They ensure that two scenarios that share the same price path until time t will be associated to the same décision variables values§
     end
 
     prices_trajectory_reduced = reshape(clustered_prices, size(prices_trajectory_scenarios)[1], size(prices_trajectory_scenarios)[2], :)

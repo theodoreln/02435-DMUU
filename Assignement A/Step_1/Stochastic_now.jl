@@ -9,7 +9,6 @@ using JuMP
 using Gurobi
 using Printf
 
-# prices=round.(10 * rand(3), digits=2)
 
 function Make_Stochastic_here_and_now_decision(prices, no_of_selected_scnearios)
     
@@ -105,5 +104,3 @@ function Make_Stochastic_here_and_now_decision(prices, no_of_selected_scnearios)
     end
 
 end
-
-# qo_ST,qs_ST,qr_ST,qst_ST,qm_ST,cost_ST=Make_Stochastic_here_and_now_decision(prices,50)

@@ -19,7 +19,7 @@ using Distances
 function make_multistage_here_and_now_decision(number_of_sim_periods, tau, current_stock, current_prices, look_ahead_days, nb_initial_scenarios, granularity, nb_reduced_scenarios, type_red)
     
     # Control the number of ahead day to not overpass the limit 
-    # The variable "actual_look_ahead_days" will decide how much day ahead we are going to look
+    # The variable "actual_look_ahead_days" will decide how many days ahead we are going to look
     # Its value can vary between "look_ahead_days" and 1 !!!
     if look_ahead_days > number_of_sim_periods - tau
         actual_look_ahead_days = number_of_sim_periods-tau+1
@@ -144,7 +144,7 @@ function kmeans_selection(prices_trajectory_scenarios, nb_initial_scenarios, nb_
     
     Probs = zeros(nb_reduced_scenarios)
     for i in scenario_assignments
-        Probs[i] = Probs[i] + 1/nb_initial_scenarios They ensure that two scenarios that share the same price path until time t will be associated to the same décision variables values§
+        Probs[i] = Probs[i] + 1/nb_initial_scenarios
     end
 
     prices_trajectory_reduced = reshape(clustered_prices, size(prices_trajectory_scenarios)[1], size(prices_trajectory_scenarios)[2], :)
